@@ -1,0 +1,16 @@
+<VSTemplate Version="2.0.0" Type="Item" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.microsoft.com/developer/vstemplate/2005">
+  <TemplateData>
+    <Name>SqlClr UDT</Name>
+    <Description>SqlClr VB UDT Template</Description>
+    <Icon Package="{164B10B9-B200-11D0-8C61-00A0C91E29D5}" ID="4510" />
+    <ProjectType>VisualBasic</ProjectType>
+    <TemplateGroupID>SqlClrProject</TemplateGroupID>
+    <TemplateID>SqlClrUDT</TemplateID>
+    <ShowByDefault>true</ShowByDefault>
+    <SortOrder>6</SortOrder>
+    <DefaultName>SqlClrUdt.vb</DefaultName>
+  </TemplateData>
+  <TemplateContent>
+    <ProjectItem ReplaceParameters="true">SqlClrUdt.vb</ProjectItem>
+  </TemplateContent>
+</VSTemplate>

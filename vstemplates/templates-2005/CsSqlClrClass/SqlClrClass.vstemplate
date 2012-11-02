@@ -1,0 +1,16 @@
+<VSTemplate Version="2.0.0" Type="Item" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.microsoft.com/developer/vstemplate/2005">
+  <TemplateData>
+    <Name>SqlClr Class</Name>
+    <Description>SqlClr C# Class Template for Creation of Procedures, Functions and Triggers</Description>
+    <Icon Package="{FAE04EC1-301F-11d3-BF4B-00C04F79EFBC}" ID="4515" />
+    <ProjectType>CSharp</ProjectType>
+    <TemplateGroupID>SqlClrProject</TemplateGroupID>
+    <TemplateID>SqlClrClass</TemplateID>
+    <ShowByDefault>true</ShowByDefault>
+    <SortOrder>1</SortOrder>
+    <DefaultName>SqlClrClass.cs</DefaultName>
+  </TemplateData>
+  <TemplateContent>
+    <ProjectItem ReplaceParameters="true">SqlClrClass.cs</ProjectItem>
+  </TemplateContent>
+</VSTemplate>

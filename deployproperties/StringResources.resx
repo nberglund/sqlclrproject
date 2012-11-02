@@ -1,0 +1,189 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="asm_Alter_Txt" xml:space="preserve">
+    <value>Flag which indicates if altering an assembly, instead of creating one, in the database.</value>
+  </data>
+  <data name="asm_Drop_Txt" xml:space="preserve">
+    <value>Flag indicating whether to drop tables (true) with columns dependent on UDT's/UDF's or just drop the column (False).</value>
+  </data>
+  <data name="asm_Name_Txt" xml:space="preserve">
+    <value>The name with which the assembly will be created in SQL Server. Change name when versioning an assembly.</value>
+  </data>
+  <data name="asm_Perm_Txt" xml:space="preserve">
+    <value>Defines the permissions the assembly will have in the database.</value>
+  </data>
+  <data name="asm_Unchecked_Txt" xml:space="preserve">
+    <value>Flag indicating that persisted data for UDT's should not be validated when altering an assembly.</value>
+  </data>
+  <data name="db_Connect_Txt" xml:space="preserve">
+    <value>Setting to indicate whether to run in connected or disconnected mode.</value>
+  </data>
+  <data name="db_ConnString_Txt" xml:space="preserve">
+    <value>The connection string to the SQL Server 2005 database where the assembly is to be created.</value>
+  </data>
+  <data name="findDb_Descr_txt" xml:space="preserve">
+    <value>Enter information to connect to the Microsoft SQL Server 2005 you intend to deploy your project to.</value>
+  </data>
+  <data name="fle_Proj_Txt" xml:space="preserve">
+    <value>The project file for your project (*.csproj|*.vbproj) can not be found. Click on the 'Browse' button to search for it.</value>
+  </data>
+  <data name="fle_Sql_Txt" xml:space="preserve">
+    <value>The deployment settings file (sql.proj), can not be found. Click on the 'Browse' button to search for it.\n\nIf this is a project without a settings file, use the default 'sql.proj' file. This can be found in the 'DeploymentProperties' directory.</value>
+  </data>
+  <data name="fndDb_Cancel_Txt" xml:space="preserve">
+    <value>Exits the dialog without updating anything.</value>
+  </data>
+  <data name="fndDb_Dbs_Txt" xml:space="preserve">
+    <value>Either enter the database you want to deploy to, or click on the drop-down button to view available databases. You also have the ability to create a new database, by clicking on the 'New' button.</value>
+  </data>
+  <data name="fndDb_NewDb_Txt" xml:space="preserve">
+    <value>Create a new database on the selected server by clicking on this button.</value>
+  </data>
+  <data name="fndDb_OK_Txt" xml:space="preserve">
+    <value>Creates a connection string from your selection and updates the Connection string box in the Deployment Properties dialog.</value>
+  </data>
+  <data name="fndDb_Refresh_Txt" xml:space="preserve">
+    <value>Searches for servers on the network.</value>
+  </data>
+  <data name="fndDb_Servers_Txt" xml:space="preserve">
+    <value>Either enter the SQL server you want to deploy your project to, or select the server by clicking on the drop-down button. You can click the 'Refresh' button to view servers on the network.</value>
+  </data>
+  <data name="fndDb_Test_Txt" xml:space="preserve">
+    <value>Test the connection to the server/database.</value>
+  </data>
+  <data name="meth_Infer_Txt" xml:space="preserve">
+    <value>Flag which indicates if the task is to infer (True) if a method is to be created as stored procedure/ UDF or base the creation on attributes (False). </value>
+  </data>
+  <data name="proj_Project_Txt" xml:space="preserve">
+    <value>File name (path to the file) of the prject file (*.vbproj/*.csproj).</value>
+  </data>
+  <data name="proj_Sql_Txt" xml:space="preserve">
+    <value>File name (path to the file) which holds the settings for the deployment tasks.</value>
+  </data>
+  <data name="src_Ext_Txt" xml:space="preserve">
+    <value>What file extension the source files have.</value>
+  </data>
+  <data name="src_Path_txt" xml:space="preserve">
+    <value>The path to the source files.</value>
+  </data>
+  <data name="src_Upload_Txt" xml:space="preserve">
+    <value>Flag which indicates if source files should be uploaded together with the assembly or not.</value>
+  </data>
+</root>

@@ -1,0 +1,29 @@
+<VSTemplate Version="2.0.0" Type="Project" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.microsoft.com/developer/vstemplate/2005">
+  <TemplateData>
+    <Name>SQL Server 2005 CLR Project</Name>
+    <Description>Project Template for SQL Server 2005 Projects</Description>
+    <Icon Package="{FAE04EC1-301F-11d3-BF4B-00C04F79EFBC}" ID="4547" />
+    <ProjectType>CSharp</ProjectType>
+    <SortOrder>20</SortOrder>
+    <CreateNewFolder>true</CreateNewFolder>
+    <CreateInPlace>true</CreateInPlace>
+    <DefaultName>SqlClrProject</DefaultName>
+    <ProvideDefaultName>true</ProvideDefaultName>
+    <PromptForSaveOnCreation>false</PromptForSaveOnCreation>
+    <LocationField>Enabled</LocationField>
+    <EnableLocationBrowseButton>true</EnableLocationBrowseButton>
+  </TemplateData>
+  <TemplateContent>
+    <Project File="SqlClrProject.csproj" ReplaceParameters="true">
+       <ProjectItem ReplaceParameters="true">AssemblyInfo.cs</ProjectItem>
+       <ProjectItem ReplaceParameters="true">sql.proj</ProjectItem>
+       <ProjectItem ReplaceParameters="false">typeconversion.xml</ProjectItem>
+       <ProjectItem ReplaceParameters="false" TargetFileName="SQL Scripts\deploy_assembly.sql">placeholder.txt</ProjectItem>
+       <ProjectItem ReplaceParameters="false" TargetFileName="SQL Scripts\deploy_methods.sql">placeholder.txt</ProjectItem>
+       <ProjectItem ReplaceParameters="false" TargetFileName="SQL Scripts\deploy_types.sql">placeholder.txt</ProjectItem>
+       <ProjectItem ReplaceParameters="false" TargetFileName="SQL Scripts\drop_assembly.sql">placeholder.txt</ProjectItem>
+       <ProjectItem ReplaceParameters="false" TargetFileName="SQL Scripts\test_methods.sql">placeholder.txt</ProjectItem>
+       <ProjectItem ReplaceParameters="false" TargetFileName="SQL Scripts\test_types.sql">placeholder.txt</ProjectItem>
+    </Project>
+  </TemplateContent>
+</VSTemplate>

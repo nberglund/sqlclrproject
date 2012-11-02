@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<VSContent xmlns="http://schemas.microsoft.com/developer/vscontent/2005">
+
+  <Content>
+    <FileName>VBSQlClrAggregate.zip</FileName>
+    <DisplayName>SQLCLR Aggregate Template VB</DisplayName>
+    <Description>A Visual Basic Template for SQLCLR Aggregates</Description>
+    <FileContentType>VSTemplate</FileContentType>
+    <ContentVersion>1.0</ContentVersion>
+    <Attributes>
+      <Attribute name="TemplateType" value="Item"></Attribute>
+      <Attribute name="ProjectType" value="Visual Basic"></Attribute>
+      <Attribute name="ProjectSubType" value="SQLCLRProjectItems"></Attribute>
+    </Attributes>
+  </Content>
+
+  <Content>
+    <FileName>VBSQlClrClass.zip</FileName>
+    <DisplayName>SQLCLR Class Template VB</DisplayName>
+    <Description>A Visual Basic Template for SQLCLR Procedure, Functions and Triggers</Description>
+    <FileContentType>VSTemplate</FileContentType>
+    <ContentVersion>1.0</ContentVersion>
+    <Attributes>
+      <Attribute name="TemplateType" value="Item"></Attribute>
+      <Attribute name="ProjectType" value="Visual Basic"></Attribute>
+      <Attribute name="ProjectSubType" value="SQLCLRProjectItems"></Attribute>
+    </Attributes>
+  </Content>
+
+  <Content>
+    <FileName>VBSqlClrUdt.zip</FileName>
+    <DisplayName>SQLCLR UDT Template VB</DisplayName>
+    <Description>A Visual Basic Template for SQLCLR User Defined Types</Description>
+    <FileContentType>VSTemplate</FileContentType>
+    <ContentVersion>1.0</ContentVersion>
+    <Attributes>
+      <Attribute name="TemplateType" value="Item"></Attribute>
+      <Attribute name="ProjectType" value="Visual Basic"></Attribute>
+      <Attribute name="ProjectSubType" value="SQLCLRProjectItems"></Attribute>
+    </Attributes>
+  </Content>
+  
+  <Content>
+    <FileName>CsSQlClrAggregate.zip</FileName>
+    <DisplayName>SQLCLR Aggregate Template C#</DisplayName>
+    <Description>A C# Template for SQLCLR Aggregates</Description>
+    <FileContentType>VSTemplate</FileContentType>
+    <ContentVersion>1.0</ContentVersion>
+    <Attributes>
+      <Attribute name="TemplateType" value="Item"></Attribute>
+      <Attribute name="ProjectType" value="Visual C#"></Attribute>
+      <Attribute name="ProjectSubType" value="SQLCLRProjectItems"></Attribute>
+    </Attributes>
+  </Content>
+
+  <Content>
+    <FileName>CsSQlClrClass.zip</FileName>
+    <DisplayName>SQLCLR Class Template C#</DisplayName>
+    <Description>A C# Template for SQLCLR Procedure, Functions and Triggers</Description>
+    <FileContentType>VSTemplate</FileContentType>
+    <ContentVersion>1.0</ContentVersion>
+    <Attributes>
+      <Attribute name="TemplateType" value="Item"></Attribute>
+      <Attribute name="ProjectType" value="Visual C#"></Attribute>
+      <Attribute name="ProjectSubType" value="SQLCLRProjectItems"></Attribute>
+    </Attributes>
+  </Content>
+
+  <Content>
+    <FileName>CsSqlClrUdt.zip</FileName>
+    <DisplayName>SQLCLR UDT Template C#</DisplayName>
+    <Description>A C# Template for SQLCLR User Defined Types</Description>
+    <FileContentType>VSTemplate</FileContentType>
+    <ContentVersion>1.0</ContentVersion>
+    <Attributes>
+      <Attribute name="TemplateType" value="Item"></Attribute>
+      <Attribute name="ProjectType" value="Visual C#"></Attribute>
+      <Attribute name="ProjectSubType" value="SQLCLRProjectItems"></Attribute>
+    </Attributes>
+  </Content>
+
+
+  <Content>
+    <FileName>CSSqlClrProject.zip</FileName>
+    <DisplayName>C# SQLCLR Project</DisplayName>
+    <Description>C# Template for a SQLCLR Project</Description>
+    <FileContentType>VSTemplate</FileContentType>
+    <ContentVersion>1.0</ContentVersion>
+    <Attributes>
+      <Attribute name="TemplateType" value="Project"></Attribute>
+      <Attribute name="ProjectType" value="Visual C#"></Attribute>
+      <Attribute name="ProjectSubType" value="SQLCLRProject"></Attribute>
+    </Attributes>
+  </Content>
+
+  <Content>
+    <FileName>VBSqlClrProject.zip</FileName>
+    <DisplayName>VB SQLCLR Project</DisplayName>
+    <Description>VB Template for a SQLCLR Project</Description>
+    <FileContentType>VSTemplate</FileContentType>
+    <ContentVersion>1.0</ContentVersion>
+    <Attributes>
+      <Attribute name="TemplateType" value="Project"></Attribute>
+      <Attribute name="ProjectType" value="Visual Basic"></Attribute>
+      <Attribute name="ProjectSubType" value="SQLCLRProject"></Attribute>
+    </Attributes>
+  </Content>
+
+
+</VSContent>
+

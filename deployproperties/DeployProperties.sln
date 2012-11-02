@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio Codename Orcas
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeployProperties", "DeployProperties.csproj", "{C6AD75F5-0887-4F49-9FC7-5C0C58CD391E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C6AD75F5-0887-4F49-9FC7-5C0C58CD391E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C6AD75F5-0887-4F49-9FC7-5C0C58CD391E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C6AD75F5-0887-4F49-9FC7-5C0C58CD391E}.Debug|x64.ActiveCfg = Debug|x64
+		{C6AD75F5-0887-4F49-9FC7-5C0C58CD391E}.Debug|x64.Build.0 = Debug|x64
+		{C6AD75F5-0887-4F49-9FC7-5C0C58CD391E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C6AD75F5-0887-4F49-9FC7-5C0C58CD391E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C6AD75F5-0887-4F49-9FC7-5C0C58CD391E}.Release|x64.ActiveCfg = Debug|x64
+		{C6AD75F5-0887-4F49-9FC7-5C0C58CD391E}.Release|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

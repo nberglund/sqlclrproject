@@ -1,0 +1,881 @@
+using System;
+using System.Data;
+using System.Data.SqlClient;
+using System.Text;
+using System.Reflection;
+using System.IO;
+using System.Diagnostics;
+using System.Collections;
+using System.Collections.Generic;
+using DM.Build.Yukon.Attributes.Service;
+using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
+
+
+namespace DM.Build.Yukon.Tasks {
+  public class DeployAssembly : Task {
+    internal string asmName = ""; //name of the assembly to deploy
+    internal string asmPath = ""; //path to the assembly
+    internal string pdbPath = ""; //full name of the pdb file
+    internal string connString = ""; //connection string to the db
+    internal int permLevel = 0; //permission levels:0=SAFE;1=EXTERNAL_ACCESS;2=UNSAFE
+    internal string perm = ""; //this is the permission set keyword used in the T-SQL syntax 
+    internal bool deployDebug = true; //flag wich indicates whether to deploy debug symbols
+    internal bool alterAsm = false; //flag which indicates whether to run ALTER instead of CREATE ASSEMBLY
+    internal string scriptFile = ""; //indicates the path and name to script the operations
+    internal bool toScript = false; //indicates whether to create a script or not. If false toConnect has to be true.
+    internal bool toConnect = false; //indicates whether to connect or just create a script. If false, toScripts has to be true/
+    internal bool toDropTable = false; //indicates whether to drop the whole table or just columns
+    internal int castType = 0; //type to cast the UDT to when creating a temp column, values:0=varchar(max);1=varbinary(max)
+    internal bool unChecked = false; //during alter assmebly indicates whether to set UNCHECKED DATA or not
+    internal bool toUpload = false; //indicates whether to upload source files.
+    internal string sourceExt = ""; //file extension for source files
+    internal string sourcePath = ""; //Path to source files
+    internal bool useDMDeployAttr = true; //flag which indicates whether we are using the deployattributes.dll or not
+    internal ServerVersion servVersion = ServerVersion.S2K5;
+    internal StreamWriter sw;
+    internal SqlConnection conn = null;
+    internal SqlTransaction tx = null;
+    internal Assembly asm = null; //instance of the assembly we're working with
+
+    string[] msKeyTokens = new string[] {
+      "b03f5f7f11d50a3a",
+      "31bf3856ad364e35",
+      "89845dcd8080cc91",
+      "71e9bce111e9429c",
+      "b77a5c561934e089"};
+    
+    
+    string[] gacDlls2k5 = new string[] { "Microsoft.Visualbasic.dll", 
+      "Mscorlib.dll", 
+      "System.Data.dll", 
+      "System.dll", 
+      "System.Xml.dll", 
+      "Microsoft.Visualc.dll", 
+      "Custommarshallers.dll", 
+      "System.Security.dll", 
+      "System.Web.Services.dll", 
+      "System.Data.SqlXml.dll", 
+      "System.Transactions.dll", 
+      "System.Data.OracleClient.dll",
+      "System.Configuration.dll",
+      "System.Deployment.dll"};
+    string[] gacDlls2k8 = new string[] { "Microsoft.Visualbasic.dll", 
+      "Mscorlib.dll", 
+      "System.Data.dll", 
+      "System.dll", 
+      "System.Xml.dll", 
+      "Microsoft.Visualc.dll", 
+      "Custommarshallers.dll", 
+      "System.Security.dll", 
+      "System.Web.Services.dll", 
+      "System.Data.SqlXml.dll", 
+      "System.Transactions.dll", 
+      "System.Data.OracleClient.dll",
+      "System.Core.dll",
+      "System.Configuration.dll",
+      "System.Deployment.dll",
+      "System.Xml.Linq.dll",
+      "Microsoft.SqlServer.Types.dll"};
+    string[] dlls = null;
+    string dirPath = null; //path to the directory where the assembly exists
+
+    internal bool isScriptingTool = false; //flag which says if we're coming from the script-tool and  not SQLCLRProject
+
+    public DeployAssembly()
+    {
+
+    }
+
+    public DeployAssembly(string _name, string _path, int _version)
+    {
+      AssemblyName = _name;
+      AssemblyPath = _path;
+      SqlServerVersion = _version;
+
+    }
+    
+    /// <summary>
+    /// Indicates whether to create an Assembly or Alter an existing. [Optional]
+    /// </summary>
+    /// <value>boolean</value>
+    public bool AlterAssembly {
+      get { return alterAsm; }
+      set { alterAsm = value; }
+    }
+
+    /// <summary>
+    /// The name of the assembly without file-extension. Required.
+    /// </summary>
+    public string AssemblyName {
+      get { return asmName; }
+      set { asmName = value; }
+    }
+
+    /// <summary>
+    /// The full path to the assembly.Required.
+    /// </summary>
+    public string AssemblyPath {
+      get { return asmPath; }
+      set { 
+        asmPath = value;
+        asm = Assembly.LoadFile(asmPath);
+        dirPath = Path.GetDirectoryName(asmPath);
+        dlls = Directory.GetFiles(dirPath, "*.dll");
+        
+      
+      }
+    }
+
+    /// <summary>
+    /// The permission level to create the assembly with. [Optional - default = SAFE]
+    /// </summary>
+    ///<value>Integer entered as string: 0=SAFE, 1=EXTERNAL_ACCESS, 2=UNSAFE</value>
+    public int PermissionSet {
+      get { return permLevel; }
+      set { permLevel = value; }
+    }
+
+    /// <summary>
+    /// Indicates whether to deploy debug symbols. Default is true. [Optional]
+    /// </summary>
+    /// <value>boolean</value>
+    public bool DeployDebugSymbols
+    {
+      get { return deployDebug; }
+      set { deployDebug = value; }
+    }
+
+    /// <summary>
+    /// The full path to the pdb files. [Optional]
+    /// </summary>
+    public string DebugSymbolsPath {
+      get { return pdbPath; }
+      set { pdbPath = value;}
+    }
+
+    /// <summary>
+    /// Connection string to the database. Optional if ScriptFilePath exists
+    /// [Optional]
+    /// </summary>
+    public string ConnectionString {
+      get { return connString; }
+      set {
+        if (value != null && value != string.Empty) {
+          connString = value;
+        }
+      }
+    }
+
+    /// <summary>
+    /// The name including full path to a script file that is 
+    /// to be created containing the T-SQL syntax for deploying the assembly.
+    /// The name of the file is a generic name and is changed to name_assembly.ext by the task. 
+    /// Optional if ConnectionString exists.
+    /// [Optional]
+    /// </summary>
+    public string ScriptFilePath {
+      get { return scriptFile; }
+      set {
+        if (value != string.Empty && value != null) {
+          string fullFilePath = value;
+
+          scriptFile = Utility.AddToFileName(fullFilePath, "assembly");
+          toScript = true;
+        }
+      }
+    }
+
+    /// <summary>
+    /// Indicates whether to drop a whole table dependent on a UDT/UDF or just the dependent column(s). Default is to drop just the columns. [Optional]
+    /// </summary>
+    /// <value>boolean</value>
+    public bool IsTableDrop {
+      get { return toDropTable; }
+      set { toDropTable = value; }
+    }
+
+    /// <summary>
+    /// Integer which indicates what datatype to cast a UDT to when re-deploying
+    /// </summary>
+    /// <value>Integer with values: 0=varchar(max), 1=varbinary(max)</value>
+    public int TypeToCastUDTTo
+    {
+      get { return castType; }
+      set { castType = value; }
+    }
+
+    /// <summary>
+    /// Used during ALTER ASSEMBLY to say whether functions/types etc needs to be dropped. If true, they are not dropped [Optional]
+    /// </summary>
+    /// 
+    /// <value>boolean</value>
+    public bool UncheckedData {
+      get { return unChecked; }
+      set { unChecked = value; }
+    }
+
+    /// <summary>
+    /// Boolean flag which indicates whether to connect to the database or not
+    /// </summary>
+    /// <value></value>
+    public bool ToConnect {
+      get { return toConnect; }
+      set { toConnect = value; }
+    }
+
+    /// <summary>
+    /// Boolean flag which indicates whether to upload source files or not
+    /// </summary>
+    /// <value></value>
+    public bool UploadSource {
+      get { return toUpload; }
+      set { toUpload = value; }
+    }
+
+    
+    /// <summary>
+    /// Path to source files. [Optional]
+    /// </summary>
+    public string SourcePath {
+      get { return sourcePath; }
+      set {
+        sourcePath = value;
+      }
+    }
+
+    /// <summary>
+    /// The file extension for source files. [Optional]
+    /// </summary>
+    public string SourceFileExtension {
+      get { return sourceExt; }
+      set {
+        sourceExt = value;
+      }
+    }
+
+    /// <summary>
+    /// Indicates whether we are using the deployattributes.dll assembly or not. If we (default) we will deploy deployattributes.dll to the db. [Optional]
+    /// </summary>
+    /// <value>boolean</value>
+    public bool UsingDMDeployAttributes
+    {
+      get { return useDMDeployAttr; }
+      set { useDMDeployAttr = value; }
+    }
+
+    /// <summary>
+    /// What version of SQL Server we target. SQL 2005 is default. [Optional]
+    /// </summary>
+    /// <value>SqlServerVersion</value>
+    public int SqlServerVersion
+    {
+      get { return (int)servVersion; }
+      set { servVersion =  (ServerVersion)value; }
+    }
+
+    /// <summary>
+    /// Validates the input. makes sure the necessary info exists.
+    /// </summary>
+    void Validate() {
+      bool val = true;
+      StringBuilder valError = new StringBuilder("Can not deploy due to following:\n");
+
+      if (asmName == "") {
+        val = false;
+        valError.Append("* AssemblyName is missing.\n");
+      }
+
+      if (asmPath == "") {
+        val = false;
+        valError.Append("* AssemblyPath is missing.\n");
+      }
+
+      if (toConnect) {
+        if (ConnectionString == null || ConnectionString == string.Empty) {
+          val = false;
+          valError.Append("* ConnectionString is missing.\n");
+        }
+      }
+
+      if (toScript) {
+        if (scriptFile == null || scriptFile == string.Empty) {
+          val = false;
+          valError.Append("* ScriptFilePath is missing.\n");
+        }
+      }
+
+      if (!toConnect && toUpload) {
+        val = false;
+        valError.Append("* ToConnect is false, but UploadSource is true.\nIn order to upload source files, ToConnect has to be true.\n");
+        
+      }
+
+      if (toUpload) {
+        if (sourceExt == null || sourceExt == string.Empty) {
+          val = false;
+          valError.Append("* SourceFileExtension is missing.\n");
+        }
+
+        if (sourcePath == null || sourcePath == string.Empty) {
+          val = false;
+          valError.Append("* SourcePath is missing.\n");
+        }
+
+
+      }
+
+      if (!val) {
+        throw new ApplicationException(valError.ToString());
+      }
+    }
+
+    public override bool Execute() {
+      //Debugger.Launch();
+      try {
+        //check that we have the necessary info
+        Validate();
+
+        if (toConnect) {
+          //open the connection
+          conn = new SqlConnection(connString);
+          conn.Open();
+
+          //start the tx
+          tx = conn.BeginTransaction();
+
+        }
+
+        //create the file
+        if (toScript) {
+          string deploymentString = "--Deployment script for assembly: " + asmName;
+          if (alterAsm)
+            deploymentString = "--Deployment script for alter assembly: " + asmName;
+
+          sw = Utility.OpenFile(scriptFile, !alterAsm);
+          Utility.WriteToFile(sw, deploymentString, false, false);
+          Utility.WriteToFile(sw, "--Autogenerated at: " + DateTime.Now, false, true);
+        }
+
+        //if this is alter, do not drop dependents
+        if (!alterAsm) {
+          DropAssembly d = new DropAssembly(sw, conn, tx, asmName, toDropTable, castType, toScript, this, Assembly.LoadFile(asmPath));
+          d.DropAsm(toConnect);
+        }
+
+        //if we are using the VS project type, check if deployproperties exist
+        if(useDMDeployAttr)
+          DeployAttributeDll();
+        
+        List<DMAssemblyName> asl = DeployAsm();
+
+        if (deployDebug)
+          DeploySymbols(asl);
+
+        if (toUpload)
+          DeployFiles();
+
+        if (toConnect) {
+          Utility.LogMyComment(this, "Comitting Transaction");
+          tx.Commit();
+        }
+
+        Utility.LogMyComment(this, "Deployment Succeeded!\n");
+        return true;
+      }
+      
+      catch (Exception e) {
+        Utility.LogMyComment(this, "Error(s) Occured");
+        Utility.LogMyComment(this, "Deployment Failed");
+        Utility.LogMyErrorFromException(this, e);
+        if (toConnect) {
+          if (tx != null) {
+            Utility.LogMyComment(this, "Rolling Back Transaction");
+            if (tx.Connection != null)
+              tx.Rollback();
+          }
+        }
+
+
+        return false;
+      }
+      finally {
+        if (toConnect) {
+          if (conn != null && conn.State != ConnectionState.Closed)
+            conn.Close();
+        }
+        if (toScript && sw != null) {
+          sw.Flush();
+          sw.Close();
+        }
+      }
+    }
+
+    void DeploySymbols(List<DMAssemblyName> asl) {
+      try {
+
+        bool hasSymbols = false;
+        StringBuilder sbCmd = new StringBuilder();
+        string deployCmd = "";
+        string logComment = "No symbol files found";
+
+        //we need to find all symbol files
+        string dirName = new FileInfo(DebugSymbolsPath).DirectoryName;
+        string[] symbolFiles = Directory.GetFiles(dirName, "*.pdb");
+                
+        //loop the files
+        foreach (string symFile in symbolFiles)
+        {
+
+          DMAssemblyName dmasm = asl.Find(delegate(DMAssemblyName dasm)
+          {
+            string asmFileWithoutExt = null;
+            string dbgFileWithoutExt = null;
+            asmFileWithoutExt = Path.GetFileNameWithoutExtension(dasm.AssemblyFileName);
+            dbgFileWithoutExt = Path.GetFileNameWithoutExtension(symFile);
+            return asmFileWithoutExt == dbgFileWithoutExt;
+          }
+          );
+          if (dmasm != null)
+          {
+            string bin = GetBinary(symFile, true);
+            deployCmd = string.Format("ALTER ASSEMBLY [{0}]\nADD FILE FROM {1}\nAS '{2}';\n", dmasm.ShortName, bin, Path.GetFileName(symFile));
+            sbCmd.Append(deployCmd);
+            deployCmd = "";
+            hasSymbols = true;
+          }
+          
+        }
+        if (hasSymbols)
+        {
+          deployCmd = sbCmd.ToString();
+          logComment = "About to deploy symbols:\n" + deployCmd + "\n";
+
+          Utility.LogMyComment(this, logComment);
+
+          if (toScript)
+          {
+            Utility.WriteToFile(sw, "--Alter the assembly to deploy debug symbols", false, false);
+            Utility.WriteToFile(sw, deployCmd, true, true);
+          }
+
+          if (toConnect)
+            Utility.WriteToDb(deployCmd, conn, tx);
+
+        }
+        else
+        {
+          Utility.LogMyComment(this, logComment);
+        }
+        
+      }
+      catch (Exception e) {
+        Utility.LogMyErrorFromException(this, e);
+        throw e;
+      }
+      finally {
+      }
+    }
+
+    void DeployFiles() {
+      string deployCmd = "";
+      try {
+        string[] sFiles = Directory.GetFiles(sourcePath, "*." + sourceExt);
+        if (sFiles.Length > 0) {
+          string logComment = "About to alter the assembly to deploy source files.\n";
+          Utility.LogMyComment(this, logComment);
+          if (toScript)
+            Utility.WriteToFile(sw, "--Alter the assembly to deploy source files", false, false);
+          StringBuilder sb = new StringBuilder();
+          foreach (string sFile in sFiles) {
+            if (sb.Length > 0)
+              sb.Remove(0, sb.Length);
+
+            sb.Append(GetBinary(sFile, true));
+            deployCmd = string.Format("ALTER ASSEMBLY [{0}]\nADD FILE FROM {1}\nAS '{2};", asmName, sb.ToString(), Path.GetFileName(sFile));
+            Utility.LogMyComment(this, deployCmd);
+            if (toScript) {
+              Utility.WriteToFile(sw, deployCmd, true, true);
+            }
+            if (toConnect)
+              Utility.WriteToDb(deployCmd, conn, tx);
+          }
+        }
+
+      }
+      catch (Exception e) {
+        Utility.LogMyErrorFromException(this, e);
+        throw e;
+      }
+      finally {
+      }
+    }
+
+    void DropFiles() {
+      try {
+        string deployCmd = string.Format("ALTER ASSEMBLY [{0}]\nDROP FILE ALL;", asmName);
+        string logComment = "About to drop files:\n" + deployCmd + "\n";
+
+        Utility.LogMyComment(this, logComment);
+
+        if (toScript) {
+          Utility.WriteToFile(sw, "--Dropping files in order to Alter the assembly", false, false);
+          Utility.WriteToFile(sw, deployCmd, true, true);
+        }
+
+        if (toConnect)
+          Utility.WriteToDb(deployCmd, conn, tx);
+
+       
+      }
+      catch (Exception e) {
+        Utility.LogMyErrorFromException(this, e);
+        throw e;
+      }
+      finally {
+      }
+    }
+
+    void LoopAsm(ref List<DMAssemblyName> asmList, string asmPath, string asmName, string asmFullPath, DMAssemblyName dmAsmName)
+    {
+      //Debugger.Launch();
+      Assembly a = null;
+      if (asmFullPath != null && dmAsmName == null)
+      {
+        a = Assembly.ReflectionOnlyLoadFrom(asmFullPath);
+        
+      }
+      else if (asmFullPath == null && dmAsmName == null)
+      {
+        asmFullPath = Path.Combine(asmPath, asmName + ".dll");
+        a = Assembly.ReflectionOnlyLoadFrom(asmFullPath);
+      }
+      else if (dmAsmName != null && dmAsmName.IsLocal)
+      {
+        a = Assembly.ReflectionOnlyLoadFrom(dmAsmName.AssemblyFileName);
+      }
+
+      else if (dmAsmName != null && !dmAsmName.IsLocal)
+      {
+        a = Assembly.ReflectionOnlyLoad(dmAsmName.AssemblyFullName);
+      }
+           
+
+      if (a != null)
+      {
+
+        foreach (AssemblyName an in a.GetReferencedAssemblies())
+        {
+
+          
+          if (an.Name != "yukondeploy" && an.Name != "deployattributes")
+          {
+            DMAssemblyName refAsm = CheckIfAsmBlessed(an.Name, an.FullName);
+            if (refAsm != null)
+            {
+              if (!refAsm.IsLocal)
+                refAsm.AssemblyFullName = an.FullName;
+                
+              if (!asmList.Exists(delegate(DMAssemblyName asmx) 
+              {
+                return asmx.ShortName == an.Name;
+              }
+                ))
+              {
+                asmList.Add(refAsm);
+                if(!refAsm.IsMSAssembly)
+                  LoopAsm(ref asmList, asmPath, an.Name, refAsm.AssemblyFileName, refAsm);
+              }
+            }
+          }
+        }
+      }
+
+    }
+
+    
+    //this loops through the list of blessed assemblies
+    //to see if referenced assemblies are in the blessed list
+    //if not add them to the list of referenced assemblies
+    DMAssemblyName CheckIfAsmBlessed(string asmName, string asmFullName)
+    {
+      DMAssemblyName dasm = null;
+      //string retString = null;
+      bool isGac = false;
+      string[] gacDlls = gacDlls2k5;
+      //in Katmai we have more dlls allowed being loaded from the GAC
+      if (servVersion == ServerVersion.S2K8)
+      {
+        gacDlls = gacDlls2k8;
+      }
+      foreach (string gacAsm in gacDlls)
+      {
+        if (gacAsm.ToUpper().IndexOf(asmName.ToUpper()) != -1)
+        {
+          isGac = true;
+          break;
+        }
+      }
+      if (!isGac)
+      {
+        dasm = new DMAssemblyName();
+        dasm.ShortName = asmName;
+        dasm.AssemblyFullName = asmFullName;
+        dasm.IsLocal = false;
+        //check against the local dll's
+        foreach (string locAsm in dlls)
+        {
+          if (locAsm.ToUpper().IndexOf(asmName.ToUpper()) != -1)
+          {
+            dasm.AssemblyFileName = locAsm;
+            dasm.IsLocal = true;
+            break;
+          }
+        }
+
+        //check if this is a MS System assembly
+        if (!dasm.IsLocal)
+        {
+          foreach (string pkt in msKeyTokens)
+          {
+            if(dasm.AssemblyFullName.Contains(pkt))
+            {
+              dasm.IsMSAssembly = true;
+              break;
+            }
+          }
+        }
+
+      }
+      return dasm;
+    }
+    /// <summary>
+    /// Gets a list of referenced assemblies
+    /// </summary>
+    /// <param name="asmPath">path to the directory where the assemly resides</param>
+    /// <param name="asmName">the name under which the assembly will be cataloged</param>
+    /// <param name="asmFullName">full path to the dll (including filename and extension)</param>
+    /// <returns>Returns a List of DMAssemblyName instances</returns>
+    public List<DMAssemblyName> GetReferencedAssemblies()
+    {
+      //Debugger.Launch();
+      List<DMAssemblyName> refList = new List<DMAssemblyName>();
+      LoopAsm(ref refList, dirPath, AssemblyName, AssemblyPath, null);
+      return refList;
+    }
+
+    string GetBinary(string asmPath, bool isFirst) {
+      FileStream fs = new FileStream(asmPath, FileMode.Open, FileAccess.Read);
+
+      byte[] bits = new byte[(int)fs.Length];
+      fs.Read(bits, 0, (int)fs.Length);
+      fs.Close();
+
+      StringBuilder sb = new StringBuilder();
+      if (!isFirst)
+        sb.Append(",");
+      sb.Append("0x");
+      foreach (byte b in bits) {
+        sb.Append(b.ToString("X2"));
+      }
+
+      return sb.ToString();
+
+    }
+    //0x4D5A90000300000004000000FFFF0000B800000000000000400000000000000000000000000000000000000000000000000000000000000000000000800000000E1FBA0E00B409CD21B8014CCD21546869732070726F6772616D2063616E6E6F742062652072756E20696E20444F53206D6F64652E0D0D0A2400000000000000504500004C010300B4617D470000000000000000E0000E210B010800000A000000060000000000008E29000000200000004000000000400000200000000200000400000000000000040000000000000000800000000200009AA300000300400500001000001000000000100000100000000000001000000000000000000000003C2900004F00000000400000A003000000000000000000000000000000000000006000000C000000B42800001C0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000080000000000000000000000082000004800000000000000000000002E746578740000009409000000200000000A000000020000000000000000000000000000200000602E72737263000000A00300000040000000040000000C0000000000000000000000000000400000402E72656C6F6300000C000000006000000002000000100000000000000000000000000000400000420000000000000000000000000000000070290000000000004800000002000500FC200000B80700000900000000000000000000000000000050200000800000000000000000000000000000000000000000000000000000000000000000000000E3A5CA963D4CF29A0F575631AC494FC598769E822531714A544ABAEE551DC8C9D7533D2C5907D5F1B8BED3ADE737E2B5A14C28259276E2E6D25586C2349C6A62CD273FADECEB4D5FE850AF90E62BD2ABEA0EAC0D7E5CB03826121E752BD7246C924656035029F74C8D37D6EF2787F6E8E88EBB7CAC4D8F49620744DD247BF9301E027B010000042A2202037D010000042A1E027B020000042A2202037D020000042A1E02281100000A2A000042534A4201000100000000000C00000076322E302E35303732370000000005006C00000064020000237E0000D00200002403000023537472696E677300000000F40500000800000023555300FC0500001000000023475549440000000C060000AC01000023426C6F6200000000000000020000015715A0010900000000FA013300160000010000001300000002000000020000000500000002000000110000000E000000010000000200000004000000010000000200000000000A00010000000000060077005C000A000101EF000A001801EF000A003501EF000A005401EF000A006D01EF000A008601EF000A00A101EF000A00BC01EF000A00F401D5010A000802D5010A001602EF000A002F02EF000A005F024C023B00730200000A00A20282020A00C20282020A00F802F1020A001003F1020000000001000000000001000100010010001F003600050001000100010089000A0001008F000D00D020000000008608940010000100D8200000000086089D0014000100E120000000008608A60019000200E920000000008608B7001D000200F220000000008618C8002200030000000100E00000000100E0001100C80014001900C80014002100C80014002900C80014003100C80014003900C80014004100C80014004900C80014005100C8002E005900C80014006100C80014006900C80014007100C80033008100C80039008900C80022009100C800E0000900C80022002E0033001E012E000B00EF002E00130005012E001B0005012E0023000B012E002B00EF002E00530043012E003B0005012E004B0005012E006B007A012E007B008C012E0063006D012E007300830143008300E600020001000000CE0026000000D3002A00020001000300010002000300020003000500010004000500048000000200050000000000010000003E00E002000002000000000000000000000001005000000000000200000000000000000000000100E600000000000000003C4D6F64756C653E006465706C6F79617474726962757465732E646C6C0053716C506172616D466163657441747472696275746500444D2E4275696C642E59756B6F6E2E417474726962757465730053797374656D2E44617461004D6963726F736F66742E53716C5365727665722E5365727665720053716C4661636574417474726962757465005F6E616D65005F76616C006765745F4E616D65007365745F4E616D65006765745F44656661756C7456616C7565007365745F44656661756C7456616C7565002E63746F72004E616D650044656661756C7456616C75650076616C7565006D73636F726C69620053797374656D2E5265666C656374696F6E00417373656D626C795469746C6541747472696275746500417373656D626C794465736372697074696F6E41747472696275746500417373656D626C79436F6E66696775726174696F6E41747472696275746500417373656D626C79436F6D70616E7941747472696275746500417373656D626C7950726F6475637441747472696275746500417373656D626C79436F7079726967687441747472696275746500417373656D626C7954726164656D61726B41747472696275746500417373656D626C7943756C747572654174747269627574650053797374656D2E52756E74696D652E496E7465726F70536572766963657300436F6D56697369626C65417474726962757465004775696441747472696275746500417373656D626C7956657273696F6E41747472696275746500417373656D626C7946696C6556657273696F6E4174747269627574650053797374656D2E446961676E6F73746963730044656275676761626C6541747472696275746500446562756767696E674D6F6465730053797374656D2E52756E74696D652E436F6D70696C6572536572766963657300436F6D70696C6174696F6E52656C61786174696F6E734174747269627574650052756E74696D65436F6D7061746962696C697479417474726962757465006465706C6F79617474726962757465730053797374656D00417474726962757465557361676541747472696275746500417474726962757465546172676574730000000000032000000000006FDD0BADC7A0844FB749331D98CFDC080008B77A5C561934E08902060E02061C0320000E042001010E0320001C042001011C032000010328000E0328001C042001010205200101113D042001010880A00024000004800000940000000602000000240000525341310004000001000100B38F2D317862F1C1B0EC973AD40327C18636EC59B230AFDBE9F8F55A116B68C4A5E365D35E35E8E724449C42EC918F90B3497A52FC2620F7DD7640F4EAF24A9CC529AF36C39828868017AC92977DACBE324CD83A59C03B05F01F85CFCC08C1A3713FB54EDD224B80A836DBF64D190A2E357C86DBA35D4DF3CC5A3C0E1D67EBAB05200101114D080100000800000000150100106465706C6F796174747269627574657300000501000000001201000D446576656C6F704D656E746F7200002401001F436F7079726967687420C2A920446576656C6F704D656E746F72203230303800002901002437626633643866302D333565352D343962622D613731302D61646235393035373035356300000C010007312E302E302E3000000801000200000000000801000800000000001E01000100540216577261704E6F6E457863657074696F6E5468726F7773010000000000B4617D4700000000020000006C000000D0280000D00A000052534453D8EC4378B92FAA4E8A8CE22D7D98CF7501000000433A5C636F64655C73716C636C7270726F6A6563745C79756B6F6E6465706C6F795C6465706C6F79617474726962757465735C6F626A5C52656C656173655C6465706C6F79617474726962757465732E706462006429000000000000000000007E29000000200000000000000000000000000000000000000000000070290000000000000000000000005F436F72446C6C4D61696E006D73636F7265652E646C6C0000000000FF250020400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100100000001800008000000000000000000000000000000100010000003000008000000000000000000000000000000100000000004800000058400000480300000000000000000000480334000000560053005F00560045005200530049004F004E005F0049004E0046004F0000000000BD04EFFE00000100000001000000000000000100000000003F000000000000000400000002000000000000000000000000000000440000000100560061007200460069006C00650049006E0066006F00000000002400040000005400720061006E0073006C006100740069006F006E00000000000000B004A8020000010053007400720069006E006700460069006C00650049006E0066006F0000008402000001003000300030003000300034006200300000003C000E00010043006F006D00700061006E0079004E0061006D0065000000000044006500760065006C006F0070004D0065006E0074006F00720000004C0011000100460069006C0065004400650073006300720069007000740069006F006E00000000006400650070006C006F007900610074007400720069006200750074006500730000000000300008000100460069006C006500560065007200730069006F006E000000000031002E0030002E0030002E00300000004C001500010049006E007400650072006E0061006C004E0061006D00650000006400650070006C006F00790061007400740072006900620075007400650073002E0064006C006C000000000064001F0001004C006500670061006C0043006F007000790072006900670068007400000043006F0070007900720069006700680074002000A900200044006500760065006C006F0070004D0065006E0074006F00720020003200300030003800000000005400150001004F0072006900670069006E0061006C00460069006C0065006E0061006D00650000006400650070006C006F00790061007400740072006900620075007400650073002E0064006C006C0000000000440011000100500072006F0064007500630074004E0061006D006500000000006400650070006C006F007900610074007400720069006200750074006500730000000000340008000100500072006F006400750063007400560065007200730069006F006E00000031002E0030002E0030002E003000000038000800010041007300730065006D0062006C0079002000560065007200730069006F006E00000032002E0035002E0030002E0030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000C000000903900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    //0x4D5A90000300000004000000FFFF0000B800000000000000400000000000000000000000000000000000000000000000000000000000000000000000800000000E1FBA0E00B409CD21B8014CCD21546869732070726F6772616D2063616E6E6F742062652072756E20696E20444F53206D6F64652E0D0D0A2400000000000000504500004C0103009CFFC3470000000000000000E0000E210B010800000A000000060000000000008E290000002000000040000000004000002000000002000004000000000000000400000000000000008000000002000066FA00000300400500001000001000000000100000100000000000001000000000000000000000003C2900004F00000000400000A003000000000000000000000000000000000000006000000C000000B42800001C0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000080000000000000000000000082000004800000000000000000000002E746578740000009409000000200000000A000000020000000000000000000000000000200000602E72737263000000A00300000040000000040000000C0000000000000000000000000000400000402E72656C6F6300000C000000006000000002000000100000000000000000000000000000400000420000000000000000000000000000000070290000000000004800000002000500FC200000B80700000900000000000000000000000000000050200000800000000000000000000000000000000000000000000000000000000000000000000000ED1255E816AC8C21B9CBE31FB0144506E0A4A030768F8B7AE4D8B7824DADD7C2A52307F6B2A05DD8177E5AA68F4B3A2E36B0616672729643344B915824DCC475625917680C0CC83A41C3B7D28B3702B60ED8EA061C1472AEE69E5D3A54664077BC5F63A555F1DEBB17855317AB2D34048EADA86F6FFFB96F19193259C570857D1E027B010000042A2202037D010000042A1E027B020000042A2202037D020000042A1E02281100000A2A000042534A4201000100000000000C00000076322E302E35303732370000000005006C00000064020000237E0000D00200002403000023537472696E677300000000F40500000800000023555300FC0500001000000023475549440000000C060000AC01000023426C6F6200000000000000020000015715A0010900000000FA013300160000010000001300000002000000020000000500000002000000110000000E000000010000000200000004000000010000000200000000000A00010000000000060077005C000A000101EF000A001801EF000A003501EF000A005401EF000A006D01EF000A008601EF000A00A101EF000A00BC01EF000A00F401D5010A000802D5010A001602EF000A002F02EF000A005F024C023B00730200000A00A20282020A00C20282020A00F802F1020A001003F1020000000001000000000001000100010010001F003600050001000100010089000A0001008F000D00D020000000008608940010000100D8200000000086089D0014000100E120000000008608A60019000200E920000000008608B7001D000200F220000000008618C8002200030000000100E00000000100E0001100C80014001900C80014002100C80014002900C80014003100C80014003900C80014004100C80014004900C80014005100C8002E005900C80014006100C80014006900C80014007100C80033008100C80039008900C80022009100C800E0000900C80022002E0033001E012E000B00EF002E00130005012E001B0005012E0023000B012E002B00EF002E00530043012E003B0005012E004B0005012E006B007A012E007B008C012E0063006D012E007300830143008300E600020001000000CE0026000000D3002A00020001000300010002000300020003000500010004000500048000000200060000000000010000003E00E002000002000000000000000000000001005000000000000200000000000000000000000100E600000000000000003C4D6F64756C653E006465706C6F79617474726962757465732E646C6C0053716C506172616D466163657441747472696275746500444D2E4275696C642E59756B6F6E2E417474726962757465730053797374656D2E44617461004D6963726F736F66742E53716C5365727665722E5365727665720053716C4661636574417474726962757465005F6E616D65005F76616C006765745F4E616D65007365745F4E616D65006765745F44656661756C7456616C7565007365745F44656661756C7456616C7565002E63746F72004E616D650044656661756C7456616C75650076616C7565006D73636F726C69620053797374656D2E5265666C656374696F6E00417373656D626C795469746C6541747472696275746500417373656D626C794465736372697074696F6E41747472696275746500417373656D626C79436F6E66696775726174696F6E41747472696275746500417373656D626C79436F6D70616E7941747472696275746500417373656D626C7950726F6475637441747472696275746500417373656D626C79436F7079726967687441747472696275746500417373656D626C7954726164656D61726B41747472696275746500417373656D626C7943756C747572654174747269627574650053797374656D2E52756E74696D652E496E7465726F70536572766963657300436F6D56697369626C65417474726962757465004775696441747472696275746500417373656D626C7956657273696F6E41747472696275746500417373656D626C7946696C6556657273696F6E4174747269627574650053797374656D2E446961676E6F73746963730044656275676761626C6541747472696275746500446562756767696E674D6F6465730053797374656D2E52756E74696D652E436F6D70696C6572536572766963657300436F6D70696C6174696F6E52656C61786174696F6E734174747269627574650052756E74696D65436F6D7061746962696C697479417474726962757465006465706C6F79617474726962757465730053797374656D004174747269627574655573616765417474726962757465004174747269627574655461726765747300000000000320000000000024B75C84E271364C8B8CAED66AD789EE0008B77A5C561934E08902060E02061C0320000E042001010E0320001C042001011C032000010328000E0328001C042001010205200101113D042001010880A00024000004800000940000000602000000240000525341310004000001000100B38F2D317862F1C1B0EC973AD40327C18636EC59B230AFDBE9F8F55A116B68C4A5E365D35E35E8E724449C42EC918F90B3497A52FC2620F7DD7640F4EAF24A9CC529AF36C39828868017AC92977DACBE324CD83A59C03B05F01F85CFCC08C1A3713FB54EDD224B80A836DBF64D190A2E357C86DBA35D4DF3CC5A3C0E1D67EBAB05200101114D080100000800000000150100106465706C6F796174747269627574657300000501000000001201000D446576656C6F704D656E746F7200002401001F436F7079726967687420C2A920446576656C6F704D656E746F72203230303800002901002437626633643866302D333565352D343962622D613731302D61646235393035373035356300000C010007312E302E302E3000000801000200000000000801000800000000001E01000100540216577261704E6F6E457863657074696F6E5468726F77730100000000009CFFC34700000000020000006C000000D0280000D00A00005253445341FD8683D3BB264487E7679E238D13B302000000433A5C7265706F735C746F6F6C732D7265706F5C73716C636C7270726F6A6563745C6465706C6F79617474726962757465735C6F626A5C52656C656173655C6465706C6F79617474726962757465732E706462006429000000000000000000007E29000000200000000000000000000000000000000000000000000070290000000000000000000000005F436F72446C6C4D61696E006D73636F7265652E646C6C0000000000FF250020400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100100000001800008000000000000000000000000000000100010000003000008000000000000000000000000000000100000000004800000058400000480300000000000000000000480334000000560053005F00560045005200530049004F004E005F0049004E0046004F0000000000BD04EFFE00000100000001000000000000000100000000003F000000000000000400000002000000000000000000000000000000440000000100560061007200460069006C00650049006E0066006F00000000002400040000005400720061006E0073006C006100740069006F006E00000000000000B004A8020000010053007400720069006E006700460069006C00650049006E0066006F0000008402000001003000300030003000300034006200300000003C000E00010043006F006D00700061006E0079004E0061006D0065000000000044006500760065006C006F0070004D0065006E0074006F00720000004C0011000100460069006C0065004400650073006300720069007000740069006F006E00000000006400650070006C006F007900610074007400720069006200750074006500730000000000300008000100460069006C006500560065007200730069006F006E000000000031002E0030002E0030002E00300000004C001500010049006E007400650072006E0061006C004E0061006D00650000006400650070006C006F00790061007400740072006900620075007400650073002E0064006C006C000000000064001F0001004C006500670061006C0043006F007000790072006900670068007400000043006F0070007900720069006700680074002000A900200044006500760065006C006F0070004D0065006E0074006F00720020003200300030003800000000005400150001004F0072006900670069006E0061006C00460069006C0065006E0061006D00650000006400650070006C006F00790061007400740072006900620075007400650073002E0064006C006C0000000000440011000100500072006F0064007500630074004E0061006D006500000000006400650070006C006F007900610074007400720069006200750074006500730000000000340008000100500072006F006400750063007400560065007200730069006F006E00000031002E0030002E0030002E003000000038000800010041007300730065006D0062006C0079002000560065007200730069006F006E00000032002E0036002E0030002E0030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000C000000903900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
+    //this method deploys the yukondeployattribute dll
+    void DeployAttributeDll() {
+      
+      try {
+        string deployCmd = "if(not exists (select * from sys.assemblies where name = 'deployattributes'))\n  begin\n  create assembly deployattributes\nfrom 0x4D5A90000300000004000000FFFF0000B800000000000000400000000000000000000000000000000000000000000000000000000000000000000000800000000E1FBA0E00B409CD21B8014CCD21546869732070726F6772616D2063616E6E6F742062652072756E20696E20444F53206D6F64652E0D0D0A2400000000000000504500004C0103009CFFC3470000000000000000E0000E210B010800000A000000060000000000008E290000002000000040000000004000002000000002000004000000000000000400000000000000008000000002000066FA00000300400500001000001000000000100000100000000000001000000000000000000000003C2900004F00000000400000A003000000000000000000000000000000000000006000000C000000B42800001C0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000080000000000000000000000082000004800000000000000000000002E746578740000009409000000200000000A000000020000000000000000000000000000200000602E72737263000000A00300000040000000040000000C0000000000000000000000000000400000402E72656C6F6300000C000000006000000002000000100000000000000000000000000000400000420000000000000000000000000000000070290000000000004800000002000500FC200000B80700000900000000000000000000000000000050200000800000000000000000000000000000000000000000000000000000000000000000000000ED1255E816AC8C21B9CBE31FB0144506E0A4A030768F8B7AE4D8B7824DADD7C2A52307F6B2A05DD8177E5AA68F4B3A2E36B0616672729643344B915824DCC475625917680C0CC83A41C3B7D28B3702B60ED8EA061C1472AEE69E5D3A54664077BC5F63A555F1DEBB17855317AB2D34048EADA86F6FFFB96F19193259C570857D1E027B010000042A2202037D010000042A1E027B020000042A2202037D020000042A1E02281100000A2A000042534A4201000100000000000C00000076322E302E35303732370000000005006C00000064020000237E0000D00200002403000023537472696E677300000000F40500000800000023555300FC0500001000000023475549440000000C060000AC01000023426C6F6200000000000000020000015715A0010900000000FA013300160000010000001300000002000000020000000500000002000000110000000E000000010000000200000004000000010000000200000000000A00010000000000060077005C000A000101EF000A001801EF000A003501EF000A005401EF000A006D01EF000A008601EF000A00A101EF000A00BC01EF000A00F401D5010A000802D5010A001602EF000A002F02EF000A005F024C023B00730200000A00A20282020A00C20282020A00F802F1020A001003F1020000000001000000000001000100010010001F003600050001000100010089000A0001008F000D00D020000000008608940010000100D8200000000086089D0014000100E120000000008608A60019000200E920000000008608B7001D000200F220000000008618C8002200030000000100E00000000100E0001100C80014001900C80014002100C80014002900C80014003100C80014003900C80014004100C80014004900C80014005100C8002E005900C80014006100C80014006900C80014007100C80033008100C80039008900C80022009100C800E0000900C80022002E0033001E012E000B00EF002E00130005012E001B0005012E0023000B012E002B00EF002E00530043012E003B0005012E004B0005012E006B007A012E007B008C012E0063006D012E007300830143008300E600020001000000CE0026000000D3002A00020001000300010002000300020003000500010004000500048000000200060000000000010000003E00E002000002000000000000000000000001005000000000000200000000000000000000000100E600000000000000003C4D6F64756C653E006465706C6F79617474726962757465732E646C6C0053716C506172616D466163657441747472696275746500444D2E4275696C642E59756B6F6E2E417474726962757465730053797374656D2E44617461004D6963726F736F66742E53716C5365727665722E5365727665720053716C4661636574417474726962757465005F6E616D65005F76616C006765745F4E616D65007365745F4E616D65006765745F44656661756C7456616C7565007365745F44656661756C7456616C7565002E63746F72004E616D650044656661756C7456616C75650076616C7565006D73636F726C69620053797374656D2E5265666C656374696F6E00417373656D626C795469746C6541747472696275746500417373656D626C794465736372697074696F6E41747472696275746500417373656D626C79436F6E66696775726174696F6E41747472696275746500417373656D626C79436F6D70616E7941747472696275746500417373656D626C7950726F6475637441747472696275746500417373656D626C79436F7079726967687441747472696275746500417373656D626C7954726164656D61726B41747472696275746500417373656D626C7943756C747572654174747269627574650053797374656D2E52756E74696D652E496E7465726F70536572766963657300436F6D56697369626C65417474726962757465004775696441747472696275746500417373656D626C7956657273696F6E41747472696275746500417373656D626C7946696C6556657273696F6E4174747269627574650053797374656D2E446961676E6F73746963730044656275676761626C6541747472696275746500446562756767696E674D6F6465730053797374656D2E52756E74696D652E436F6D70696C6572536572766963657300436F6D70696C6174696F6E52656C61786174696F6E734174747269627574650052756E74696D65436F6D7061746962696C697479417474726962757465006465706C6F79617474726962757465730053797374656D004174747269627574655573616765417474726962757465004174747269627574655461726765747300000000000320000000000024B75C84E271364C8B8CAED66AD789EE0008B77A5C561934E08902060E02061C0320000E042001010E0320001C042001011C032000010328000E0328001C042001010205200101113D042001010880A00024000004800000940000000602000000240000525341310004000001000100B38F2D317862F1C1B0EC973AD40327C18636EC59B230AFDBE9F8F55A116B68C4A5E365D35E35E8E724449C42EC918F90B3497A52FC2620F7DD7640F4EAF24A9CC529AF36C39828868017AC92977DACBE324CD83A59C03B05F01F85CFCC08C1A3713FB54EDD224B80A836DBF64D190A2E357C86DBA35D4DF3CC5A3C0E1D67EBAB05200101114D080100000800000000150100106465706C6F796174747269627574657300000501000000001201000D446576656C6F704D656E746F7200002401001F436F7079726967687420C2A920446576656C6F704D656E746F72203230303800002901002437626633643866302D333565352D343962622D613731302D61646235393035373035356300000C010007312E302E302E3000000801000200000000000801000800000000001E01000100540216577261704E6F6E457863657074696F6E5468726F77730100000000009CFFC34700000000020000006C000000D0280000D00A00005253445341FD8683D3BB264487E7679E238D13B302000000433A5C7265706F735C746F6F6C732D7265706F5C73716C636C7270726F6A6563745C6465706C6F79617474726962757465735C6F626A5C52656C656173655C6465706C6F79617474726962757465732E706462006429000000000000000000007E29000000200000000000000000000000000000000000000000000070290000000000000000000000005F436F72446C6C4D61696E006D73636F7265652E646C6C0000000000FF250020400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100100000001800008000000000000000000000000000000100010000003000008000000000000000000000000000000100000000004800000058400000480300000000000000000000480334000000560053005F00560045005200530049004F004E005F0049004E0046004F0000000000BD04EFFE00000100000001000000000000000100000000003F000000000000000400000002000000000000000000000000000000440000000100560061007200460069006C00650049006E0066006F00000000002400040000005400720061006E0073006C006100740069006F006E00000000000000B004A8020000010053007400720069006E006700460069006C00650049006E0066006F0000008402000001003000300030003000300034006200300000003C000E00010043006F006D00700061006E0079004E0061006D0065000000000044006500760065006C006F0070004D0065006E0074006F00720000004C0011000100460069006C0065004400650073006300720069007000740069006F006E00000000006400650070006C006F007900610074007400720069006200750074006500730000000000300008000100460069006C006500560065007200730069006F006E000000000031002E0030002E0030002E00300000004C001500010049006E007400650072006E0061006C004E0061006D00650000006400650070006C006F00790061007400740072006900620075007400650073002E0064006C006C000000000064001F0001004C006500670061006C0043006F007000790072006900670068007400000043006F0070007900720069006700680074002000A900200044006500760065006C006F0070004D0065006E0074006F00720020003200300030003800000000005400150001004F0072006900670069006E0061006C00460069006C0065006E0061006D00650000006400650070006C006F00790061007400740072006900620075007400650073002E0064006C006C0000000000440011000100500072006F0064007500630074004E0061006D006500000000006400650070006C006F007900610074007400720069006200750074006500730000000000340008000100500072006F006400750063007400560065007200730069006F006E00000031002E0030002E0030002E003000000038000800010041007300730065006D0062006C0079002000560065007200730069006F006E00000032002E0036002E0030002E0030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000C000000903900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\nend";         
+        string logCmd = "--Creating the deploy attribute assembly";
+        string createText = "About to create deploy attributes assembly\n";
+
+        string logComment = createText + deployCmd + "\n";
+        Utility.LogMyComment(this, logComment);
+
+        if (toScript) {
+          Utility.WriteToFile(sw, logCmd, false, false);
+          Utility.WriteToFile(sw, deployCmd, true, true);
+        }
+
+        if (toConnect) {
+          Utility.WriteToDb(deployCmd, conn,tx);
+        }
+               
+      }
+      catch (Exception e) {
+        Utility.LogMyErrorFromException(this, e);
+        throw e;
+      }
+
+        
+      finally {
+      }
+        
+    
+    }
+
+    List<DMAssemblyName> DeployAsm()
+    {
+      bool isNonLocal = false;
+      string asmWarning;
+      List<DMAssemblyName> asl = null;
+      try {
+        //Debugger.Launch();
+        //deploy the assembly
+        //get the perm set
+
+        switch (PermissionSet) {
+          case 0:
+            perm = "SAFE";
+            break;
+
+          case 1:
+            perm = "EXTERNAL_ACCESS";
+            break;
+
+          case 2:
+            perm = "UNSAFE";
+            break;
+
+          default:
+            perm = "SAFE";
+            break;
+        }
+
+        string createCmd = "CREATE ASSEMBLY ";
+        string logCmd = "--Creating the assembly";
+
+        if (alterAsm) {
+          createCmd = "ALTER ASSEMBLY ";
+          logCmd = "--Altering the assembly";
+        }
+
+        //get the binary rep of the main assembly
+        StringBuilder sb = new StringBuilder();
+        sb.Append(GetBinary(asmPath, true));
+
+        //ArrayList asl = new ArrayList();
+        asl = new List<DMAssemblyName>();
+        
+        
+        //if not alter, get the binary representation of the dependent assemblies
+        if (!alterAsm)
+        {
+          //get the dependent assemblies
+          asl = GetReferencedAssemblies();
+          StringBuilder nonBlessed = new StringBuilder();
+          nonBlessed.Append("***WARNING***\nFollowing assemblies - which are referenced by the main assembly - are not in the applicaton directory, and not in the 'blessed' list either:\n");
+          
+
+          string depName = null;
+          foreach (DMAssemblyName an in asl)
+          {
+            if (an.IsLocal)
+            {
+              depName = an.AssemblyFileName;
+              sb.Append(GetBinary(depName, false));
+            }
+            else
+            {
+              isNonLocal = true;
+              nonBlessed.Append("  * " + an.ShortName + "\n");
+            }
+
+          }
+
+          if (isNonLocal)
+          {
+            nonBlessed.Append("The above assemblies have to be catalogued in the database before this deployment can succeed.\n***END WARNING***\n");
+            asmWarning = nonBlessed.ToString();
+            Utility.LogMyComment(this, asmWarning);
+
+          }
+
+        }
+        
+        
+        string deployCmd = string.Format("{0} [{1}]\nFROM {2}\nWITH PERMISSION_SET = {3}", createCmd, asmName, sb.ToString(), perm);
+
+        string createText = "About to create assembly '" + asmName + "':\n";
+
+        if (alterAsm) {
+          //Debugger.Launch();
+          //we need to drop debug symbols 
+          //before being able to alter an assembly
+          if (deployDebug)
+            DropFiles();
+
+          createText = "About to alter assembly '" + asmName + "':\n";
+          if (unChecked) {
+            deployCmd = string.Format("{0},\n{1}", deployCmd, "UNCHECKED DATA");
+          }
+        }
+
+        //add the main assembly to the list (will be used for debug symbols)
+        DMAssemblyName dmasm = new DMAssemblyName(asmPath, asmName, true);
+        asl.Add(dmasm);
+        string logComment = createText + deployCmd + "\n";
+        Utility.LogMyComment(this, logComment);
+
+        if (toScript) {
+          Utility.WriteToFile(sw, logCmd, false, false);
+          Utility.WriteToFile(sw, deployCmd, true, true);
+        }
+
+        if (toConnect) {
+          //Debugger.Launch();
+          Utility.WriteToDb(deployCmd, conn, tx);
+        }
+        return asl;
+               
+      }
+      catch (Exception e) {
+        
+        if(toConnect && alterAsm) {
+          if(e.Message.Contains("ALTER ASSEMBLY has marked data as unchecked")) {
+            Utility.LogMyComment(this, e.Message);
+          }
+          else {
+            Utility.LogMyErrorFromException(this, e);
+            throw e;
+          }
+
+        }
+        else {
+          Utility.LogMyErrorFromException(this, e);
+          throw e;
+        }
+        return asl;
+      }
+      finally {
+      }
+    }
+  }
+  /// <summary>
+  /// A class containing assembly information
+  /// </summary>
+  public class DMAssemblyName
+  {
+    
+    public string AssemblyFileName { get; set; }
+    public string ShortName { get; set; }
+    public bool IsLocal { get; set; }
+    public string AssemblyFullName { get; set; }
+    public bool IsMSAssembly { get; set; }
+    public DMAssemblyName(){}
+    
+    public DMAssemblyName(string asmFileName, string shortName) : this(asmFileName, shortName, false){}
+    
+    public DMAssemblyName(string asmFileName, string shortName, bool _isLocal)
+    {
+      AssemblyFileName = asmFileName;
+      ShortName = shortName;
+      IsLocal = _isLocal;
+      
+    }
+  }
+}

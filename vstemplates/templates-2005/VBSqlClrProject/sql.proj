@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+ 
+  <UsingTask TaskName="DM.Build.Yukon.Tasks.DeployAssembly"  AssemblyName="yukondeploy, version=2.6.0.0,culture=neutral,publickeytoken=837e5cc1726a2c56"/>
+  <UsingTask TaskName="DM.Build.Yukon.Tasks.DeployMethods" AssemblyName="yukondeploy, version=2.6.0.0,culture=neutral,publickeytoken=837e5cc1726a2c56"/>
+  <UsingTask TaskName="DM.Build.Yukon.Tasks.DeployTypes" AssemblyName="yukondeploy, version=2.6.0.0,culture=neutral,publickeytoken=837e5cc1726a2c56"/>
+  <UsingTask TaskName="DM.Build.Yukon.Tasks.DropAssembly" AssemblyName="yukondeploy, version=2.6.0.0,culture=neutral,publickeytoken=837e5cc1726a2c56"/>
+  <UsingTask TaskName="DM.Build.Yukon.Tasks.ExecDebug" AssemblyName="yukondeploy, version=2.6.0.0,culture=neutral,publickeytoken=837e5cc1726a2c56"/>
+  
+  <Import Project="$safeprojectname$.vbproj" />
+  
+  <PropertyGroup>
+    <Alterassembly>false</Alterassembly>
+    <Connectionstring>server=localhost;database=[DB_NAME];Integrated Security='SSPI'</Connectionstring>
+    <DropTable>true</DropTable>
+    <Castudtcolto>0</Castudtcolto>
+    <ConnectDatabase>true</ConnectDatabase>
+    <Serverversion>0</Serverversion>
+    <Permissionset>0</Permissionset>
+    <Uncheckeddata>false</Uncheckeddata>
+    <Infermethods>false</Infermethods>
+    <Assemblyname>$(AssemblyName)</Assemblyname>
+    <Assemblypath>$(TargetDir)$(TargetFileName)</Assemblypath>
+    <Basedirectory>$(MSBuildProjectDirectory)</Basedirectory>
+    <ScriptFilePath>$(Basedirectory)\SQL Scripts\deploy.sql</ScriptFilePath>
+    <TypeConversionFilePath>$(Basedirectory)\typeconversion.xml</TypeConversionFilePath>
+    <Uploadsource>false</Uploadsource>
+    <Sourcepath>$(MSBuildProjectDirectory)</Sourcepath>
+    <Sourceextension>cs</Sourceextension>
+    <Deploydbgsymbols>true</Deploydbgsymbols>
+    <Debugpath>$(TargetDir)$(TargetName).pdb</Debugpath>
+    <CmdText>""</CmdText>
+    <Usedeployattributes>True</Usedeployattributes>
+  </PropertyGroup>
+  
+  <Target Name="DeployAsm">
+		<DeployAssembly
+       AlterAssembly="$(Alterassembly)" 
+       AssemblyName="$(Assemblyname)"
+       AssemblyPath="$(Assemblypath)" 
+       DeployDebugSymbols="$(Deploydbgsymbols)"
+       DebugSymbolsPath="$(Debugpath)"
+       SqlServerVersion="$(Serverversion)" 
+       ConnectionString="$(Connectionstring)"
+       PermissionSet="$(Permissionset)"
+       ScriptFilePath="$(ScriptFilePath)"
+       IsTableDrop="$(DropTable)"
+       TypeToCastUDTTo="$(Castudtcolto)" 
+       UncheckedData="$(Uncheckeddata)"
+       ToConnect="$(ConnectDatabase)"
+       UploadSource="$(Uploadsource)"
+       SourcePath="$(Sourcepath)"
+       SourceFileExtension="$(Sourceextension)"
+       UsingDMDeployAttributes="$(Usedeployattributes)"/>
+  </Target>
+  
+  <Target Name="DeployMeth">
+		<DeployMethods
+       AlterAssembly="$(Alterassembly)"
+       AssemblyName="$(Assemblyname)"
+       AssemblyPath="$(Assemblypath)"
+       TypeConversionFilePath="$(TypeConversionFilePath)"
+       ConnectionString="$(Connectionstring)"
+       InferMethods="$(Infermethods)"
+       ScriptFilePath="$(ScriptFilePath)"
+       IsTableDrop="$(DropTable)"
+       ToConnect="$(ConnectDatabase)"/>
+  </Target>
+  
+  <Target Name="DeployUDT">
+		<DeployTypes
+       AlterAssembly="$(Alterassembly)"
+       AssemblyName="$(Assemblyname)"
+       AssemblyPath="$(Assemblypath)"
+       ConnectionString="$(Connectionstring)"
+       ScriptFilePath="$(ScriptFilePath)"
+       IsTableDrop="$(DropTable)"
+       TypeToCastUDTTo="$(Castudtcolto)" 
+       ToConnect="$(ConnectDatabase)"/>
+  </Target>
+
+  <Target Name="DropAssembly">
+    <DropAssembly
+       AssemblyName="$(Assemblyname)"
+       AssemblyPath="$(Assemblypath)" 
+       ConnectionString="$(Connectionstring)"
+       ScriptFilePath="$(ScriptFilePath)"
+       IsTableDrop="$(DropTable)"
+       TypeToCastUDTTo="$(Castudtcolto)"
+       ToConnect="$(ConnectDatabase)"/>
+  </Target>
+  
+  <Target Name="ExecDebug">
+    <ExecDebug 
+      ConnectionString="$(Connectionstring)" 
+      CmdText="$(CmdText)">
+    </ExecDebug>
+  </Target>
+
+  <Target Name="DeployAll" DependsOnTargets="DeployAsm;DeployUDT;DeployMeth"/>
+
+</Project>

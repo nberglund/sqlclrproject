@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?> 
+<Types>
+  <Type ID="Int32">int</Type>
+  <Type ID="SqlInt32">int</Type>
+  <Type ID="Int64">bigint</Type>
+  <Type ID="SqlInt64">bigint</Type>
+  <Type ID="String">nvarchar</Type>
+  <Type ID="SqlString">nvarchar</Type>
+  <Type ID="SqlBinary">varbinary</Type>
+  <Type ID="SqlDateTime">datetime</Type>
+  <Type ID="DateTime">datetime</Type>
+  <Type ID="SqlDecimal">decimal</Type>
+  <Type ID="Decimal">decimal</Type>
+  <Type ID="SqlDouble">float</Type>
+  <Type ID="Double">float</Type>
+  <Type ID="SqlSingle">real</Type>
+  <Type ID="Single">real</Type>
+  <Type ID="SqlMoney">money</Type>
+  <Type ID="SqlGuid">uniqueidentifier</Type>
+  <Type ID="Guid">uniqueidentifier</Type>
+  <Type ID="SqlXml">xml</Type>
+  <Type ID="XmlElement">xml</Type>
+  <Type ID="bool">bit</Type>
+  <Type ID="Boolean">bit</Type>
+  <Type ID="SqlBoolean">bit</Type>
+  <Type ID="Object">sql_variable</Type>
+  <Type ID="object">sql_variable</Type>
+  <Type ID="SqlHierarchyId">hierarchyid</Type>
+  <Type ID="SqlGeometry">geometry</Type>
+  <Type ID="SqlGeography">geography</Type>
+</Types>

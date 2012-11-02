@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="deployattributes">
+</Property><Property Name="Solution File" Value="C:\code\yukondeploy\deployattributes\deployattributes.sln">
+</Property><Property Name="Date" Value="07 May 2007">
+</Property><Property Name="Time" Value="07:49">
+</Property></Properties><Event ErrorLevel="0" Project="deployattributes" Source="deployattributes.csproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="deployattributes" Source="deployattributes.csproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="" Source="deployattributes.sln" Description="Solution converted successfully">
+</Event><Event ErrorLevel="3" Project="" Source="deployattributes.sln" Description="Converted">
+</Event><Event ErrorLevel="0" Project="deployattributes" Source="deployattributes.csproj" Description="Scan complete: Upgrade not required for project files.">
+</Event></UpgradeLog>
